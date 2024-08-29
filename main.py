@@ -6,9 +6,16 @@ from PIL import Image
 from dotenv import load_dotenv
 from funciones import get_patterns_from_text
 
+# main = False | dev = True
+DEV_MODE = False
+
 load_dotenv()
-token = os.getenv("TOKEN")
-# token_dev = os.getenv("TOKEN_DEV")
+patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
+
+if DEV_MODE:
+    token = os.getenv('TOKEN_DEV')
+else:
+    token = os.getenv('TOKEN_MAIN')
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -34,13 +41,10 @@ async def on_message(message):
             texto = msg.replace("pinga ", "")
             patterns = get_patterns_from_text(texto)
 
-            # Path to the 'patterns' folder
-            folder_path = 'patterns'
-
             # List of image file paths
             patterns = get_patterns_from_text(texto)
 
-            image_paths = [f"{folder_path}/{pattern}.png" for pattern in patterns]
+            image_paths = [f"{patterns_folder_path}/{pattern}.png" for pattern in patterns]
 
             # Load all images
             images = [Image.open(img) for img in image_paths]
