@@ -1,3 +1,28 @@
+from PIL import Image
+
+
+def create_beatmap_image(image_paths):
+    # Load all images
+    images = [Image.open(img) for img in image_paths]
+
+    widths, heights = zip(*(i.size for i in images))
+
+    # Total width should be 1984px but discord crop makes 2016px prettier, which is a horizontal margin of 16px
+    total_width = 2016
+    max_height = 124
+
+    # Create a new blank image with the appropriate size in RGBA mode
+    map_image = Image.new('RGBA', (total_width, max_height))
+
+    # Paste each image into the new image
+    x_offset = 16
+    for img in images:
+        map_image.paste(img, (x_offset, 0), img)
+        x_offset += img.size[0]
+
+    return map_image
+
+
 def do_open_and_closing_symbols_match(input_string, opening_symbol,
                                       closing_symbol):
     s = []
