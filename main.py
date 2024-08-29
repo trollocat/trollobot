@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from funciones import get_patterns_from_text
 
 load_dotenv()
-token = os.getenv("TOKEN")
-# token_dev = os.getenv("TOKEN_DEV")
+# token = os.getenv("TOKEN")
+token_dev = os.getenv("TOKEN_DEV")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -96,6 +96,6 @@ async def on_message(message):
 
 
 try:
-    client.run(token)
+    client.run(token_dev)
 except Exception as e:
     logging.error(f"Error iniciando el bot: {e}")
