@@ -4,7 +4,7 @@ import discord
 import logging
 from PIL import Image
 from dotenv import load_dotenv
-from funciones import get_patterns_from_text
+from funciones import *
 
 # main = False | dev = True
 DEV_MODE = True
@@ -39,42 +39,26 @@ async def on_message(message):
     if msg.startswith("pinga"):
         try:
             texto = msg.replace("pinga ", "")
-            patterns = get_patterns_from_text(texto)
 
             # List of image file paths
             patterns = get_patterns_from_text(texto)
 
             image_paths = [f"{patterns_folder_path}/{pattern}.png" for pattern in patterns]
 
-            # Load all images
-            images = [Image.open(img) for img in image_paths]
+            # Split images into chunks of 16
+            chunk_size = 16
+            for i in range(0, len(image_paths), chunk_size):
+                chunk = image_paths[i:i + chunk_size]
+                montage = create_beatmap_image(chunk)
 
-            # Assuming all images have the same height
-            widths, heights = zip(*(i.size for i in images))
+                # Save the image to a BytesIO object (in-memory file)
+                with io.BytesIO() as image_binary:
+                    montage.save(image_binary, 'PNG')
+                    image_binary.seek(0)
 
-            # Total width will be fixed to 1984 pixels
-            total_width = 1984
-
-            # Height will be the height of the tallest image
-            max_height = max(heights)
-
-            # Create a new blank image with the appropriate size in RGBA mode (to support transparency)
-            new_image = Image.new('RGBA', (total_width, max_height))
-
-            # Paste each image into the new image
-            x_offset = 0
-            for img in images:
-                new_image.paste(img, (x_offset, 0), img)
-                x_offset += img.size[0]
-
-            # Save the final montage to a BytesIO object (in-memory file)
-            with io.BytesIO() as image_binary:
-                new_image.save(image_binary, 'PNG')  # Save image to the in-memory file
-                image_binary.seek(0)  # Seek to the start of the file
-
-                # Send the image using discord.File
-                await message.channel.send(
-                    file=discord.File(fp=image_binary, filename='combined_image.png'))
+                    # Send the image using discord.File
+                    await message.channel.send(
+                        file=discord.File(fp=image_binary, filename=f'combined_image_{i // chunk_size + 1}.png'))
         except Exception as e:
             print(f"Error generando imagen: {e}")
             await message.channel.send("Error generando imagen.")
