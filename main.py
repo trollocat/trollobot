@@ -4,7 +4,7 @@ import discord
 import logging
 from PIL import Image
 from dotenv import load_dotenv
-from funciones import *
+from utils import *
 
 # main = False | dev = True
 DEV_MODE = False
