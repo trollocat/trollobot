@@ -1,5 +1,6 @@
 import io
 import os
+import math
 import discord
 import logging
 from PIL import Image
@@ -47,6 +48,12 @@ async def on_message(message):
 
             # Split images into chunks of 16
             chunk_size = 16
+            image_limit = 8
+
+            if len(image_paths) > chunk_size * image_limit:
+                raise ValueError(
+                    f"El resultado daría {math.ceil(len(image_paths) / chunk_size)} imágenes, es una banda")
+
             for i in range(0, len(image_paths), chunk_size):
                 chunk = image_paths[i:i + chunk_size]
                 montage = create_beatmap_image(chunk)
@@ -61,7 +68,7 @@ async def on_message(message):
                         file=discord.File(fp=image_binary, filename=f'combined_image_{i // chunk_size + 1}.png'))
         except Exception as e:
             print(f"Error generando imagen: {e}")
-            await message.channel.send("Error generando imagen.")
+            await message.channel.send(e)
 
     elif msg.startswith("tt "):
         texto = msg.replace("tt ", "")
