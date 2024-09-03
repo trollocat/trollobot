@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 
 # main = False | dev = True
-DEV_MODE = False
+DEV_MODE = True
 
 load_dotenv()
 patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
