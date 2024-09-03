@@ -13,6 +13,7 @@ DEV_MODE = False
 
 load_dotenv()
 patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
+trollocat_id = os.getenv("TROLLOCAT_ID")
 
 if DEV_MODE:
     token = os.getenv('TOKEN_DEV')
@@ -29,17 +30,25 @@ logging.basicConfig(level=logging.INFO)
 @client.event
 async def on_ready():
     print(f'Loggeado como {client.user}')
-    try:
-        await client.tree.sync()  # Sync commands globally
-        print("Slash commands sincronizados.")
-    except Exception as e:
-        print(f"Error sincronizando slash commands: {e}")
+
+
+@client.tree.command(name="sync", description="Sincroniza slash commands")
+async def sync(interaction: discord.Interaction):
+    if interaction.user.id == int(trollocat_id):
+        await client.tree.sync()
+        await interaction.response.send_message("Slash commands sincronizados")
+    else:
+        await interaction.response.send_message("Solo el todopoderoso trollocat puede usar este comando")
 
 
 @client.tree.command(name="pinga", description="Genera una imagen a partir de un patrón")
 async def pinga(interaction: discord.Interaction, texto: str):
     try:
         patterns = get_patterns_from_text(texto)
+
+        if "pepiga" in patterns:
+            raise ValueError("patrón mal formulado. Ejemplo correcto: (kkkdddk)kdd(kkkd)d[kkd]d k")
+
         image_paths = [f"{patterns_folder_path}/{pattern}.png" for pattern in patterns]
 
         chunk_size = 16
@@ -68,10 +77,15 @@ async def pinga(interaction: discord.Interaction, texto: str):
                                           filename=f'trollobot_taiko_pattern{i // chunk_size + 1}.png'))
 
 
+
+    except ValueError as ve:
+
+        await interaction.response.send_message(f"Error, {ve}", ephemeral=True)
+
+
     except Exception as e:
-        print(f"Error generando imagen: {e}")
-        await interaction.response.send_message(
-            f"Patrón mal formulado o muy largo. Ejemplo correcto: (kkkdddk)kdd(kkkd)d[kkd]d k", ephemeral=True)
+
+        await interaction.response.send_message(f"Error inesperado, {e}", ephemeral=True)
 
 
 @client.tree.command(name="tt", description="Genera un mensaje con emojis a partir de un patrón")
@@ -80,18 +94,25 @@ async def tt(interaction: discord.Interaction, texto: str):
     try:
         patterns = get_patterns_from_text(texto)
         for emote in patterns:
+            if emote == "pepiga":
+                raise ValueError("patrón mal formulado. Ejemplo correcto: (kkkdddk)kdd(kkkd)d[kkd]d k")
             emoji = discord.utils.get(client.emojis, name=emote)
             if emoji:
                 mensaje += str(emoji)
             else:
                 mensaje += f":{emote}:"
         mensaje += "​"  # Invisible zero width character
+
+        if len(mensaje) > 1500:
+            raise ValueError("mensaje muy largo")
+
         await interaction.response.send_message(mensaje)
+
+    except ValueError as ve:
+        await interaction.response.send_message(f"Error, {ve}", ephemeral=True)
+
     except Exception as e:
-        print(f"Error procesando patrón: {e}")
-        await interaction.response.send_message(
-            "Patrón mal formulado o muy largo. Ejemplo correcto: (kkkdddk)kdd(kkkd)d[kkd]d k"
-        )
+        await interaction.response.send_message(f"Error inesperado, {e}", ephemeral=True)
 
 
 client.run(token)
