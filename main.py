@@ -76,8 +76,7 @@ async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False)
                     if x_offset + img.size[0] > 0 and x_offset < total_width:
                         frame.paste(img, (x_offset, 0), img)
                     x_offset += img.size[0]
-                    if patterns[index][1]:
-                        x_offset -= 62
+                    x_offset = int(x_offset - max_height * patterns[index][1])
 
                 frames.append(frame)
 
