@@ -39,9 +39,9 @@ async def sync(ctx: commands.Context):
     await client.tree.sync()
 
 
-@client.tree.command(name="pinga", description="Genera una imagen a partir de un patrón")
-@app_commands.describe(texto="Patrón en texto", gif="¿Visualizar animado en GIF?")
-async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False):
+@client.tree.command(name="pinga", description="Genera una imagen o GIF a partir de un patrón")
+@app_commands.describe(texto="Patrón en texto", gif="¿Visualizar animado en GIF? por defecto: False", bpm="Velocidad del GIF, por defecto: 120")
+async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False, bpm: float = 120.0):
     try:
         await interaction.response.defer()  # Defer the response to avoid timeout
 
@@ -60,23 +60,23 @@ async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False)
             images = [Image.open(path) for path in image_paths]
 
             frame_duration_ms = 22
+            precision_factor = 100
             # total_width = 2016
-            # max_height = 124
             total_width = 1512
             max_height = 124
 
             total_scroll_width = total_width * 2 + sum(img.size[0] for img in images)
 
             frames = []
-            for offset in range(0, total_scroll_width - total_width + 1, 22):
+            for offset in range(0, (total_scroll_width - total_width + 1) * precision_factor,
+                                int(frame_duration_ms * precision_factor * (bpm / 120.0) * 0.895)):
                 frame = Image.new("RGBA", (total_width, max_height), (255, 255, 255, 0))
-                x_offset = total_width - offset
-
+                x_offset = total_width * precision_factor - offset
                 for index, img in enumerate(images):
-                    if x_offset + img.size[0] > 0 and x_offset < total_width:
-                        frame.paste(img, (x_offset, 0), img)
-                    x_offset += img.size[0]
-                    x_offset = int(x_offset - max_height * patterns[index][1])
+                    if x_offset + img.size[0] * precision_factor > 0 and x_offset < total_width * precision_factor:
+                        frame.paste(img, (int(x_offset / precision_factor), 0), img)
+                    x_offset += img.size[0] * precision_factor
+                    x_offset = int(x_offset - max_height * patterns[index][1] * precision_factor)
 
                 frames.append(frame)
 

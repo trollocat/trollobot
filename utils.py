@@ -92,28 +92,46 @@ def get_patterns_from_text(text):
 
             if j == 2:
                 result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
-                result.append((f"6{normalized_text[i + 2]}2", 0.33))
+                result.append((f"6{normalized_text[i + 2]}2", 1 / 3))
 
             elif j == 3:
                 result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
                 result.append((f"6{normalized_text[i + 2]}6{normalized_text[i + 3]}", 0))
-                result.append((f"6{normalized_text[i + 3]}1", 0.66))
+                result.append((f"6{normalized_text[i + 3]}1", 2 / 3))
 
             elif j == 4:
                 result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
                 result.append((f"6{normalized_text[i + 2]}6{normalized_text[i + 3]}", 0))
                 result.append((f"6{normalized_text[i + 3]}1{normalized_text[i + 4]}", 0))
 
-            elif j % 3 == 1:
+            elif j >= 5 and j % 3 == 2:
+                result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
+                y = 2
+                while y < j - 1:
+                    result.append((f"6{normalized_text[i + y]}6{normalized_text[i + y + 1]}", 0))
+                    result.append((f"6{normalized_text[i + y + 1]}1{normalized_text[i + y + 2]}6{normalized_text[i + y + 3]}", 0))
+                    y += 3
+                result.append((f"6{normalized_text[i + j]}2", 1 / 3))
+
+            elif j >= 6 and j % 3 == 0:
                 result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
                 result.append((f"6{normalized_text[i + 2]}6{normalized_text[i + 3]}", 0))
                 y = 3
                 while y < j - 1:
-                    result.append(
-                        (f"6{normalized_text[i + y]}1{normalized_text[i + y + 1]}6{normalized_text[i + y + 2]}", 0))
+                    result.append((f"6{normalized_text[i + y]}1{normalized_text[i + y + 1]}6{normalized_text[i + y + 2]}", 0))
                     result.append((f"6{normalized_text[i + y + 2]}6{normalized_text[i + y + 3]}", 0))
                     y += 3
-                result.append((f"6{normalized_text[i + j - 1]}1{normalized_text[i + j]}", 0.33))
+                result.append((f"6{normalized_text[i + j]}1", 2 / 3))
+
+            elif j >= 7 and j % 3 == 1:
+                result.append((f"1{normalized_text[i + 1]}6{normalized_text[i + 2]}", 0))
+                result.append((f"6{normalized_text[i + 2]}6{normalized_text[i + 3]}", 0))
+                y = 3
+                while y < j - 1:
+                    result.append((f"6{normalized_text[i + y]}1{normalized_text[i + y + 1]}6{normalized_text[i + y + 2]}", 0))
+                    result.append((f"6{normalized_text[i + y + 2]}6{normalized_text[i + y + 3]}", 0))
+                    y += 3
+                result.append((f"6{normalized_text[i + j - 1]}1{normalized_text[i + j]}", 0))
 
             i += j + 2
 
@@ -128,7 +146,7 @@ def get_patterns_from_text(text):
 
             elif j == 2:
                 result.append((f"1{normalized_text[i + 1]}8{normalized_text[i + 2]}", 0))
-                result.append((f"8{normalized_text[i + 2]}", 0.5))
+                result.append((f"8{normalized_text[i + 2]}", 1 / 2))
 
             elif j == 3:
                 result.append((f"1{normalized_text[i + 1]}8{normalized_text[i + 2]}", 0))
@@ -137,7 +155,7 @@ def get_patterns_from_text(text):
             elif j == 4:
                 result.append((f"1{normalized_text[i + 1]}8{normalized_text[i + 2]}", 0))
                 result.append((f"8{normalized_text[i + 2]}1{normalized_text[i + 3]}8{normalized_text[i + 4]}", 0))
-                result.append((f"8{normalized_text[i + 4]}", 0.5))
+                result.append((f"8{normalized_text[i + 4]}", 1 / 2))
 
             elif j >= 5 and j % 2 == 1:
                 y = 1
@@ -155,7 +173,7 @@ def get_patterns_from_text(text):
                     result.append(
                         (f"8{normalized_text[i + y + 1]}1{normalized_text[i + y + 2]}8{normalized_text[i + y + 3]}", 0))
                     y += 2
-                result.append((f"8{normalized_text[i + y + 1]}", 0.5))
+                result.append((f"8{normalized_text[i + y + 1]}", 1 / 2))
 
             i += j + 2
     return result
@@ -181,7 +199,7 @@ def create_beatmap_image(image_paths):
 
 
 if __name__ == "__main__":
-    example = "(kkkkkkk)"
+    example = "(dkdkd)(kdkdk)(dkdkdk)(kdkdkd)(dkdkdkd)(kdkdkdk)"
     emoji_message = ""
     patterns = get_patterns_from_text(example)
     for emoji in patterns:
