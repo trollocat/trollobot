@@ -10,7 +10,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # main = False | dev = True
-DEV_MODE = True
+DEV_MODE = False
 
 load_dotenv()
 patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
