@@ -1,10 +1,13 @@
 import io
 import os
+import cv2
 import math
 import asyncio
 import discord
 import logging
-from utils import *
+import numpy as np
+from text_parser import *
+from image_renderer import *
 from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
@@ -41,8 +44,9 @@ async def sync(ctx: commands.Context):
 
 @client.tree.command(name="pinga", description="Genera una imagen o GIF a partir de un patrón.")
 @app_commands.describe(texto="Patrón en texto.", gif="¿Visualizar animado en GIF? por defecto: False.",
+                       video="¿Visualizar en video? por defecto: False.",
                        bpm="Velocidad del GIF, por defecto: 120.")
-async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False, bpm: float = 120.0):
+async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False, video: bool = False, bpm: float = 120.0):
     try:
         patterns = get_patterns_from_text(texto)
     except ValueError as ve:
@@ -52,9 +56,6 @@ async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False,
             await interaction.response.defer()  # Defer the response to avoid timeout
 
             image_paths = [f"{patterns_folder_path}/{pattern[0]}.png" for pattern in patterns]
-
-            chunk_size = 16
-            image_limit = 8
 
             # GIF
             if gif:
@@ -98,6 +99,8 @@ async def pinga(interaction: discord.Interaction, texto: str, gif: bool = False,
 
             # PNG
             else:
+                chunk_size = 16
+                image_limit = 8
                 if len(image_paths) > chunk_size * image_limit:
                     raise ValueError(
                         f"El resultado daría {math.ceil(len(image_paths) / chunk_size)} imágenes, lo cual es una banda.")

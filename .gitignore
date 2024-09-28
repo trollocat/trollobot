@@ -6,6 +6,7 @@
 build
 dist
 build.bat
-main.spec
+trollobot.spec
 __pycache__/
-update_and_relaunch.bat
+output
+frames
