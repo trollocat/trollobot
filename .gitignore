@@ -1,6 +1,11 @@
 .env
 *.pyc
 *.log
+*.osu
+*.osz
+*.ogg
+*.mp3
+*.wav
 .venv/
 .idea/
 build
@@ -10,3 +15,4 @@ trollobot.spec
 __pycache__/
 output
 frames
+sounds

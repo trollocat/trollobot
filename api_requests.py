@@ -6,13 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client_id = os.getenv("OSU_CLIENT_ID")
 client_secret = os.getenv("OSU_CLIENT_SECRET")
-
 api = Ossapi(int(client_id), client_secret)
-
-print(api.user("trollocat").username)
-print(api.user(12092800, mode="osu").username)
-print(api.beatmap(221777).id)
-
 catboy_url = "https://catboy.best"
 
 
@@ -29,4 +23,8 @@ def download_beatmap_osu_file(beatmap_id):
     return res.text
 
 
-print(download_beatmap_osu_file(3411955))
+if __name__ == "__main__":
+    print(api.user("trollocat").username)
+    print(api.user(12092800, mode="osu").username)
+    print(api.beatmap(221777).id)
+    print(download_beatmap_osu_file(3411955))
