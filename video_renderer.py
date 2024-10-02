@@ -2,6 +2,7 @@ import numpy as np
 import subprocess
 import shutil
 import uuid
+import math
 import cv2
 import os
 from slider.library import Library
@@ -25,7 +26,16 @@ if not os.path.exists(frames_dir):
 
 
 class Circle:
-    def __init__(self, x_pos, y_pos, radius, hit_type, speed):
+    def __init__(self, offset, x_pos, y_pos, radius, hit_type, speed):
+        """
+        :param offset: timedelta, indicates exact absolute time position inside a beatmap
+        :param x_pos: px, actual x position used by the renderer to move the circle across the screen
+        :param y_pos: px, actual y position used by the renderer to move the circle across the screen
+        :param radius: px
+        :param hit_type: don, kat, big don or big kat
+        :param speed: base multiplier, placeholder until there's SV implementation
+        """
+        self.offset = offset
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.radius = radius
@@ -42,14 +52,14 @@ class Circle:
         elif self.hit_type == "big kat":
             self.image = cv2.imread("images/big-kat.png", cv2.IMREAD_UNCHANGED)
         else:
-            raise ValueError(f"Unknown hit_type {self.hit_type}")
+            raise ValueError(f"unknown hit_type {self.hit_type}")
 
         if self.image is None:
-            raise FileNotFoundError(f"Could not load image for {self.hit_type}")
+            raise FileNotFoundError(f"could not load image for {self.hit_type}")
 
         self.image_height, self.image_width = self.image.shape[:2]
 
-    def update_position(self, frame_count):
+    def update_position(self, current_frame):
         if self.x_pos >= 136:  # -200 from initial offset
             self.x_pos -= self.speed
         else:
@@ -142,7 +152,7 @@ def beatmap_from_id(diff_id):
 def load_image(image_path):
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     if image is None:
-        raise FileNotFoundError(f"Image not found: {image_path}")
+        raise FileNotFoundError(f"image not found: {image_path}")
     if image.shape[2] == 3:
         # add alpha channel if missing
         image = np.dstack([image, np.ones((image.shape[0], image.shape[1]), dtype=np.uint8) * 255])
@@ -182,42 +192,41 @@ def draw_image(frame, image, x, y, center_self_vertical=False, center_self_horiz
     frame[y1:y2, x1:x2, 3] = (blended_alpha * 255).astype(np.uint8)
 
 
-def draw_taiko(length_seconds, batch_size=100):
+def draw_taiko(beatmap):
     taiko_bar_left = load_image("images/taiko-bar-left.png")
     hitzone = load_image("images/hitzone.png")
-
     total_frame_height = height
-    total_frames = int(length_seconds * fps)
 
-    circles = [
-        Circle(x_pos=width, y_pos=height / 2 + 2, radius=circle_radius, hit_type="don", speed=5),
-        Circle(x_pos=width, y_pos=height / 2 + 2, radius=circle_radius, hit_type="kat", speed=6),
-        Circle(x_pos=width, y_pos=height / 2 + 2, radius=circle_radius, hit_type="big don", speed=7),
-    ]
+    hit_objects = []
 
-    for batch_start in range(0, total_frames, batch_size):
-        batch_end = min(batch_start + batch_size, total_frames)
+    for hit_object in beatmap.hit_objects():
+        hit_type = decode_hit_type(hit_object.hitsound)
+        offset = hit_object.time.total_seconds() * 1000
+        x_pos = width + offset
+        hit_objects.append(Circle(offset=offset, x_pos=x_pos, y_pos=height / 2 + 2, radius=circle_radius, hit_type=hit_type, speed=4))
 
-        for frame_count in range(batch_start, batch_end):
-            frame = np.zeros((total_frame_height, width, 4), dtype=np.uint8)
+    total_frames = math.ceil(beatmap.hit_objects()[-1].time.total_seconds()) * fps
 
-            draw_image(frame, hitzone, 336, height / 2, center_self_vertical=True)
+    for frame_count in range(0, total_frames):
+        frame = np.zeros((total_frame_height, width, 4), dtype=np.uint8)
 
-            for circle in circles:
-                circle.update_position(frame_count)
-                circle.draw(frame)
+        draw_image(frame, hitzone, 336, height / 2, center_self_vertical=True)
 
-            draw_image(frame, taiko_bar_left, 0, height / 2, center_self_vertical=True)
+        for circle in hit_objects:
+            circle.update_position(frame_count)
+            circle.draw(frame)
 
-            # Save frame to file
-            frame_path = os.path.join(frames_dir, f"frame_{frame_count:05d}.png")
-            cv2.imwrite(frame_path, frame)
+        draw_image(frame, taiko_bar_left, 0, height / 2, center_self_vertical=True)
+
+        # Save frame to file
+        frame_path = os.path.join(frames_dir, f"frame_{frame_count:05d}.png")
+        cv2.imwrite(frame_path, frame)
 
     return total_frames
 
 
-def generate_frames(video_length_seconds):
-    total_frames = draw_taiko(video_length_seconds)
+def generate_frames(beatmap):
+    total_frames = draw_taiko(beatmap)
     return total_frames
 
 
@@ -236,13 +245,13 @@ def encode_video(fps, frames_dir):
     return video_filename
 
 
-def test_video():
-    generate_frames(2)
+def test_video(beatmap):
+    generate_frames(beatmap)
 
     video_filename = encode_video(fps, frames_dir)
 
     shutil.rmtree(frames_dir)
-    print(f"Video encoding complete: {video_filename}")
+    print(f"video encoding complete: {video_filename}")
 
     open_video(video_filename)
 
@@ -287,13 +296,10 @@ def test_beatmap():
     # beatmap_from_id(3506754)
     songs_library = create_library()
     beatmap = get_beatmap_from_id_in_library(3506754, songs_library)
-    print(beatmap)
-    print(beatmap.timing_points)
-    for hit_object in beatmap.hit_objects():
-        print(f"{hit_object.hitsound} {decode_hit_type(hit_object.hitsound)}")
+    print(math.ceil(beatmap.hit_objects()[-1].time.total_seconds()))
     return beatmap
 
 
 if __name__ == "__main__":
-    # test_beatmap()
-    test_video()
+    beatmap = test_beatmap()
+    test_video(beatmap)
