@@ -3,6 +3,7 @@
 *.log
 *.osu
 *.osz
+*.osr
 *.ogg
 *.mp3
 *.wav
@@ -16,3 +17,4 @@ __pycache__/
 output
 frames
 sounds
+songs

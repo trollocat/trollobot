@@ -9,7 +9,7 @@ class CollectionDB:
     version : int
         Version number (e.g. 20150203)
     num_collections : int
-        Number of collections
+        Number of library
     collections : list[Collection]
         List of :class:`~slider.collection.Collection` s
     """
@@ -62,7 +62,7 @@ class CollectionDB:
 
 
 class Collection:
-    """An osu! collection. One or more collections are present in a
+    """An osu! collection. One or more library are present in a
     `collection.db` file.
 
     Parameters

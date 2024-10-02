@@ -174,7 +174,7 @@ class Bezier(Curve):
 
 
 class _MetaCurveMixin:
-    """Mixin for defining curves which are collections of other curves.
+    """Mixin for defining curves which are library of other curves.
 
     Implementers must provide a ``_curves`` attribute which is the collection
     of curves.
