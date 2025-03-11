@@ -1,10 +1,10 @@
-import numpy as np
-import subprocess
-import shutil
-import uuid
-import math
-import cv2
 import os
+import math
+import numpy as np
+import cv2
+import time
+import uuid
+import subprocess
 from slider.library import Library
 from slider.beatmap import Beatmap
 from slider.replay import Replay
@@ -16,13 +16,42 @@ hit_zone_offset = 336
 circle_radius = 62
 fps = 240
 speed = 6
-kat_color_bgr = (168, 139, 65)  # 418ba8
-don_color_bgr = (43, 67, 229)  # e5432b
-frames_dir = "frames"
 output_dir = "output"
 
-if not os.path.exists(frames_dir):
-    os.makedirs(frames_dir)
+
+class TimingPoint:
+    def __init__(self, offset, x_pos, y_pos, is_inherited, speed):
+        """
+        :param offset: timedelta, indicates exact absolute time position inside a beatmap
+        :param x_pos: px, actual x position used by the renderer to move the circle across the screen
+        :param y_pos: px, actual y position used by the renderer to move the circle across the screen
+        :param is_inherited: red is true, otherwise green line
+        :param speed: base multiplier, placeholder until there's SV implementation
+        """
+        self.offset = offset
+        self.x_pos = int(x_pos + circle_radius)
+        self.y_pos = y_pos
+        self.is_inherited = is_inherited
+        self.speed = speed
+
+    def update_position(self, current_frame):
+        if self.x_pos >= 136:  # -200 from initial offset
+            self.x_pos -= self.speed
+        else:
+            self.x_pos = int(self.x_pos - self.speed / 2)
+            self.y_pos -= self.speed
+
+    def draw(self, frame):
+        x1 = int(self.x_pos + 200)
+        y1 = int(self.y_pos - 64 / 2)
+        x2 = x1
+        y2 = int(self.y_pos + 64 / 2)
+        if self.is_inherited:
+            color = (0, 0, 255)
+        else:
+            color = (0, 255, 0)
+
+        cv2.line(frame, (x1, y1), (x2, y2), color, 2)
 
 
 class Circle:
@@ -98,7 +127,7 @@ class Circle:
 
         # ensure the image is within frame boundaries before drawing
         if x1 < x2 and y1 < y2 and img_x1 < img_x2 and img_y1 < img_y2:
-            # Extract the alpha channel from the image
+            # extract the alpha channel from the image
             alpha = self.image[img_y1:img_y2, img_x1:img_x2, 3] / 255.0  # Normalize alpha to range 0-1
             bgr_image = self.image[img_y1:img_y2, img_x1:img_x2, :3]
 
@@ -198,62 +227,60 @@ def draw_taiko(beatmap):
     total_frame_height = height
 
     hit_objects = []
+    timing_points = []
+
+    for timing_point in beatmap.timing_points:
+        offset = int(timing_point.offset.total_seconds() * 1000)
+        x_pos = width + offset
+        is_inherited = bool(timing_point.parent)
+        timing_points.append(TimingPoint(offset=offset, x_pos=x_pos, y_pos=height / 2, is_inherited=is_inherited, speed=speed))
 
     for hit_object in beatmap.hit_objects():
         hit_type = decode_hit_type(hit_object.hitsound)
-        offset = hit_object.time.total_seconds() * 1000
+        offset = int(hit_object.time.total_seconds() * 1000)
         x_pos = width + offset
-        hit_objects.append(Circle(offset=offset, x_pos=x_pos, y_pos=height / 2 + 2, radius=circle_radius, hit_type=hit_type, speed=4))
+        hit_objects.append(Circle(offset=offset, x_pos=x_pos, y_pos=height / 2, radius=circle_radius, hit_type=hit_type, speed=speed))
 
     total_frames = math.ceil(beatmap.hit_objects()[-1].time.total_seconds()) * fps
+    total_frames += math.ceil(width * 2 / speed)
 
-    for frame_count in range(0, total_frames):
+    video_filename = os.path.join(output_dir, f'video_{uuid.uuid4().hex[:16]}.mp4')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
+    video_video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, total_frame_height))
+
+    start_time = time.time()
+
+    for frame_count in range(total_frames):
         frame = np.zeros((total_frame_height, width, 4), dtype=np.uint8)
 
-        draw_image(frame, hitzone, 336, height / 2, center_self_vertical=True)
+        draw_image(frame, hitzone, 336, height / 2, center_self_vertical=True)  # Reused calculation
 
-        for circle in hit_objects:
+        for circle in reversed(hit_objects):
             circle.update_position(frame_count)
             circle.draw(frame)
 
+        for timing_point in timing_points:
+            timing_point.update_position(frame_count)
+            timing_point.draw(frame)
+
         draw_image(frame, taiko_bar_left, 0, height / 2, center_self_vertical=True)
 
-        # Save frame to file
-        frame_path = os.path.join(frames_dir, f"frame_{frame_count:05d}.png")
-        cv2.imwrite(frame_path, frame)
+        video_video_writer.write(frame[:, :, :3])
 
-    return total_frames
+    video_video_writer.release()
 
+    end_time = time.time()
+    print(f"Video created: {video_filename}, processing time: {end_time - start_time:.2f} seconds")
 
-def generate_frames(beatmap):
-    total_frames = draw_taiko(beatmap)
-    return total_frames
-
-
-def encode_video(fps, frames_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    video_filename = f"{output_dir}/video_{uuid.uuid4().hex[:16]}.webm"
-
-    command = [
-        'ffmpeg', '-y', '-framerate', str(fps), '-i', f'{frames_dir}/frame_%05d.png',
-        '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', video_filename  # Change to yuv420p for no transparency
-    ]
-
-    subprocess.run(command, check=True)
     return video_filename
 
 
 def test_video(beatmap):
-    generate_frames(beatmap)
-
-    video_filename = encode_video(fps, frames_dir)
-
-    shutil.rmtree(frames_dir)
-    print(f"video encoding complete: {video_filename}")
-
-    open_video(video_filename)
+    video_filename = draw_taiko(beatmap)
+    if video_filename:
+        open_video(video_filename)
+    else:
+        print("Failed to encode the video.")
 
 
 def open_video(video_path):
@@ -296,7 +323,7 @@ def test_beatmap():
     # beatmap_from_id(3506754)
     songs_library = create_library()
     beatmap = get_beatmap_from_id_in_library(3506754, songs_library)
-    print(math.ceil(beatmap.hit_objects()[-1].time.total_seconds()))
+    print(beatmap.timing_points[0].offset.total_seconds() * 1000)
     return beatmap
 
 
