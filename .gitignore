@@ -9,3 +9,8 @@ build.bat
 main.spec
 __pycache__/
 update_and_relaunch.bat
+audio.ogg
+output/
+replay.osr
+songs/
+sounds/
