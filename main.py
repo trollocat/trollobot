@@ -1,7 +1,6 @@
 import io
 import os
 import math
-import asyncio
 import discord
 import logging
 from utils import *
@@ -10,11 +9,11 @@ from discord import app_commands
 from discord.ext import commands
 
 # main = False | dev = True
-DEV_MODE = False
+DEV_MODE = True
 
 load_dotenv()
-patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
 trollocat_id = os.getenv("TROLLOCAT_ID")
+patterns_folder_path = os.getenv("PATTERNS_FOLDER_PATH")
 
 if DEV_MODE:
     token = os.getenv('TOKEN_DEV')
