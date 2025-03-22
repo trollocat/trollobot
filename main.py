@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # main = False | dev = True
-DEV_MODE = True
+DEV_MODE = False
 
 load_dotenv()
 trollocat_id = os.getenv("TROLLOCAT_ID")
