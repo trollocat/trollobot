@@ -26,7 +26,7 @@ else:
 
 DB = None
 
-admins = {trollocat_id}
+admins = {int(trollocat_id)}
 tp_emoji = "<:tp:1354982310277157024>"
 
 intents = discord.Intents.default()
@@ -178,58 +178,58 @@ async def saldo(interaction: discord.Interaction):
 
 
 @client.tree.command(name="comprar", description="para comprar un trollocat")
-async def comprar(interaction: discord.Interaction, card_name: str):
+async def comprar(interaction: discord.Interaction, nombre: str):
     user = await get_user(DB, interaction.user.id, interaction.user.name)
-    card = await DB.fetchrow("SELECT * FROM cards WHERE name = $1", card_name)
+    trollocat = await get_trollocat(DB, nombre)
 
-    if not card:
+    if not trollocat:
         await interaction.response.send_message(f"🚫 {interaction.user.name}, ese trollocat no existe")
         return
 
-    if user["balance"] < card["price"]:
-        await interaction.response.send_message(f"💸 {interaction.user.name}, no te alcanza la guita")
+    if user["balance"] < trollocat["price"]:
+        await interaction.response.send_message(f"💸 {interaction.user.name}, con {user["balance"]} no te alcanza, sale {trollocat["price"]}")
         return
 
-    await update_balance(DB, interaction.user.id, -card["price"])
-    await DB.execute("INSERT INTO transactions (user_id, card_id, transaction_type, amount) VALUES ($1, $2, 'buy', $3)",
-                     interaction.user.id, card["id"], card["price"])
+    await update_balance(DB, interaction.user.id, -trollocat["price"])
+    await add_transaction(DB, interaction.user.id, trollocat["id"], trollocat["price"])
 
-    await interaction.response.send_message(f"✅ felitaciones {interaction.user.name}, compraste {card_name} por {card['price']} {tp_emoji}!")
+    await interaction.response.send_message(f"✅ felitaciones {interaction.user.name}, compraste {nombre} por {trollocat['price']} {tp_emoji}!")
 
 
 @client.tree.command(name="mis_trollocats", description="muestra tus trollocat")
 async def mis_trollocats(interaction: discord.Interaction):
     user_id = interaction.user.id
-    cards = await DB.fetch("SELECT name FROM cards WHERE id IN (SELECT card_id FROM transactions WHERE user_id = $1)", user_id)
+    trollocats = await get_trollocats_from_user(DB, user_id)
+    print(trollocats)
 
-    if not cards:
+    if not trollocats:
         await interaction.response.send_message(f"📭 {interaction.user.name}, no tenés trollocats")
     else:
-        card_names = ", ".join([card["name"] for card in cards])
-        await interaction.response.send_message(f"📜 {interaction.user.name}, tenés los siguientes trollocats: {card_names}")
+        trollocat_names = ", ".join([trollocat["name"] for trollocat in trollocats])
+        await interaction.response.send_message(f"📜 {interaction.user.name}, tenés los siguientes trollocats: {trollocat_names}")
 
 
 @client.tree.command(name="trollocat", description="muestra la información de un trollocat")
 async def trollocat(interaction: discord.Interaction, nombre: str):
     user = interaction.user
-    card = await get_card(DB, nombre)
+    trollocat = await get_trollocat(DB, nombre)
 
-    if not card:
+    if not trollocat:
         await interaction.response.send_message(f"❌ no se encontró el trollocat **{nombre}**.", ephemeral=True)
         return
 
-    nombre, card_price, image_path = card["name"], card["price"], card["image_path"]
+    nombre, trollocat_price, image_path = trollocat["name"], trollocat["price"], trollocat["image_path"]
 
     embed = discord.Embed(
         title=f"📜 {nombre}",
-        description=f"💰 **precio:** {card_price} {tp_emoji}",
+        description=f"💰 **precio:** {trollocat_price} {tp_emoji}",
         color=discord.Color.gold()
     )
     embed.set_footer(text=f"comando de {user.name}")
 
     if os.path.exists(image_path):
-        file = discord.File(image_path, filename="card.png")
-        embed.set_image(url=f"attachment://card.png")
+        file = discord.File(image_path, filename="trollocat.png")
+        embed.set_image(url=f"attachment://trollocat.png")
         await interaction.response.send_message(embed=embed, file=file)
     else:
         embed.set_image(url="https://via.placeholder.com/300?text=Imagen+no+disponible")  # Placeholder
@@ -243,16 +243,18 @@ async def laburar(interaction: discord.Interaction):
 
 
 @client.tree.command(name="admin_agregar_trollocat", description="(admin) agrega una nueva trollocat.")
-async def admin_agregar_trollocat(interaction: discord.Interaction, card_name: str, price: int, image: discord.Attachment):
-    if interaction.user.id not in admins:  # Replace with real admin IDs
+async def admin_agregar_trollocat(interaction: discord.Interaction, trollocat_name: str, price: int, image: discord.Attachment):
+    if interaction.user.id not in admins:
+        print(admins)
+        print(interaction.user.id)
         await interaction.response.send_message("🚫 solo admins", ephemeral=True)
         return
 
-    file_path = f"storage/{card_name}.png"
+    file_path = f"storage/{trollocat_name}.png"
     await image.save(file_path)
 
-    await add_card(DB, card_name, price, file_path)
-    await interaction.response.send_message(f"✅ se agregó el trollocat {card_name} con un precio de lista de {price} {tp_emoji}.")
+    await add_trollocat(DB, trollocat_name, price, file_path)
+    await interaction.response.send_message(f"✅ se agregó el trollocat {trollocat_name} con un precio de lista de {price} {tp_emoji}.")
 
 
 client.run(token)
