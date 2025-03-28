@@ -1,9 +1,13 @@
 import io
 import os
 import math
+import json
 import discord
 import logging
+import asyncpg
+import threading
 from utils import *
+from database import *
 from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
@@ -20,6 +24,11 @@ if DEV_MODE:
 else:
     token = os.getenv('TOKEN_MAIN')
 
+DB = None
+
+admins = {trollocat_id}
+tp_emoji = "<:tp:1354982310277157024>"
+
 intents = discord.Intents.default()
 intents.message_content = True
 client = commands.Bot(command_prefix='!', intents=intents)
@@ -30,6 +39,9 @@ logging.basicConfig(level=logging.INFO)
 @client.event
 async def on_ready():
     print(f'Loggeado como {client.user}')
+    global DB
+    DB = await init_db()
+    print(f"{client.user} está listo y conectado a la base de datos!")
 
 
 @client.hybrid_command()
@@ -157,6 +169,90 @@ async def tt(interaction: discord.Interaction, texto: str):
 
         except Exception as e:
             await interaction.response.send_message(f"Error inesperado. {e}", ephemeral=True)
+
+
+@client.tree.command(name="saldo", description="para consultar tu saldo de trollopesos")
+async def saldo(interaction: discord.Interaction):
+    user = await get_user(DB, interaction.user.id, interaction.user.name)
+    await interaction.response.send_message(f"💰 hola {interaction.user.name}, tenés {user['balance']} {tp_emoji}.")
+
+
+@client.tree.command(name="comprar", description="para comprar un trollocat")
+async def comprar(interaction: discord.Interaction, card_name: str):
+    user = await get_user(DB, interaction.user.id, interaction.user.name)
+    card = await DB.fetchrow("SELECT * FROM cards WHERE name = $1", card_name)
+
+    if not card:
+        await interaction.response.send_message(f"🚫 {interaction.user.name}, ese trollocat no existe")
+        return
+
+    if user["balance"] < card["price"]:
+        await interaction.response.send_message(f"💸 {interaction.user.name}, no te alcanza la guita")
+        return
+
+    await update_balance(DB, interaction.user.id, -card["price"])
+    await DB.execute("INSERT INTO transactions (user_id, card_id, transaction_type, amount) VALUES ($1, $2, 'buy', $3)",
+                     interaction.user.id, card["id"], card["price"])
+
+    await interaction.response.send_message(f"✅ felitaciones {interaction.user.name}, compraste {card_name} por {card['price']} {tp_emoji}!")
+
+
+@client.tree.command(name="mis_trollocats", description="muestra tus trollocat")
+async def mis_trollocats(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    cards = await DB.fetch("SELECT name FROM cards WHERE id IN (SELECT card_id FROM transactions WHERE user_id = $1)", user_id)
+
+    if not cards:
+        await interaction.response.send_message(f"📭 {interaction.user.name}, no tenés trollocats")
+    else:
+        card_names = ", ".join([card["name"] for card in cards])
+        await interaction.response.send_message(f"📜 {interaction.user.name}, tenés los siguientes trollocats: {card_names}")
+
+
+@client.tree.command(name="trollocat", description="muestra la información de un trollocat")
+async def trollocat(interaction: discord.Interaction, nombre: str):
+    user = interaction.user
+    card = await get_card(DB, nombre)
+
+    if not card:
+        await interaction.response.send_message(f"❌ no se encontró el trollocat **{nombre}**.", ephemeral=True)
+        return
+
+    nombre, card_price, image_path = card["name"], card["price"], card["image_path"]
+
+    embed = discord.Embed(
+        title=f"📜 {nombre}",
+        description=f"💰 **precio:** {card_price} {tp_emoji}",
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text=f"comando de {user.name}")
+
+    if os.path.exists(image_path):
+        file = discord.File(image_path, filename="card.png")
+        embed.set_image(url=f"attachment://card.png")
+        await interaction.response.send_message(embed=embed, file=file)
+    else:
+        embed.set_image(url="https://via.placeholder.com/300?text=Imagen+no+disponible")  # Placeholder
+        await interaction.response.send_message(embed=embed)
+
+
+@client.tree.command(name="laburar", description="agarrá la pala y ganá 5 trollopesos.")
+async def laburar(interaction: discord.Interaction):
+    await update_balance(DB, interaction.user.id, 5)
+    await interaction.response.send_message(f"🔨 {interaction.user.name}, trabajaste (por fin) y ganaste 5 {tp_emoji}!")
+
+
+@client.tree.command(name="admin_agregar_trollocat", description="(admin) agrega una nueva trollocat.")
+async def admin_agregar_trollocat(interaction: discord.Interaction, card_name: str, price: int, image: discord.Attachment):
+    if interaction.user.id not in admins:  # Replace with real admin IDs
+        await interaction.response.send_message("🚫 solo admins", ephemeral=True)
+        return
+
+    file_path = f"storage/{card_name}.png"
+    await image.save(file_path)
+
+    await add_card(DB, card_name, price, file_path)
+    await interaction.response.send_message(f"✅ se agregó el trollocat {card_name} con un precio de lista de {price} {tp_emoji}.")
 
 
 client.run(token)
