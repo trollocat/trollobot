@@ -228,11 +228,12 @@ async def trollocat(interaction: discord.Interaction, nombre: str):
     embed.set_footer(text=f"comando de {user.name}")
 
     if os.path.exists(image_path):
-        file = discord.File(image_path, filename="trollocat.png")
-        embed.set_image(url=f"attachment://trollocat.png")
+        filename = os.path.basename(image_path)
+        file = discord.File(image_path, filename=filename)
+        embed.set_image(url=f"attachment://{filename}")
         await interaction.response.send_message(embed=embed, file=file)
     else:
-        embed.set_image(url="https://via.placeholder.com/300?text=Imagen+no+disponible")  # Placeholder
+        embed.set_image(url="https://i.vgy.me/TpLwhg.png")
         await interaction.response.send_message(embed=embed)
 
 
@@ -250,7 +251,7 @@ async def admin_agregar_trollocat(interaction: discord.Interaction, trollocat_na
         await interaction.response.send_message("🚫 solo admins", ephemeral=True)
         return
 
-    file_path = f"storage/{trollocat_name}.png"
+    file_path = f"storage/{trollocat_name}{os.path.splitext(image.filename)[1]}"
     await image.save(file_path)
 
     await add_trollocat(DB, trollocat_name, price, file_path)
